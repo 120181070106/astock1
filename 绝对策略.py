@@ -3,6 +3,8 @@ f.fontManager.addfont("s.ttf");plt.rcParams['axes.unicode_minus']=0;plt.rcParams
 左=lambda 价:np.insert(价[:-1],0,价[0]); 右=lambda 价:np.insert(价[1:],-1,价[-1]); pp=lambda a:np.array(a); 变幅=lambda 次,首:(次-首)/首*100; 掩点=lambda 掩:np.where(掩)[0]; 串否=0 
 抠数=lambda l,位:pp([int(str(日).split('-')[位]) for 日 in l]); 热图=lambda x,矩,c=0:s.heatmap(矩,cmap='viridis',yticklabels=r(-10,11),xticklabels=r(-10,11),center=c,annot=矩,ax=x) 
 标=[['价','高','低','开','前'],['开收','中收','开中']]; 颜=['b','r','g','orange','purple']; warnings.filterwarnings('ignore'); 集=['今全价.csv','去全价.csv','前全价.csv']
+# 文集=['d201.csv','d223.csv','d245.csv']; 额列 = [pd.read_csv(f,header=None).iloc[:,3:] for f in 文集] #---------------若已下多个年份文件,用这两行进行合并------------
+# 基列=pd.read_csv(文集[0],header=None).iloc[:,:3]; pd.concat([基列]+额列,axis=1).to_csv('d205.csv',index=False,header=False) 
 def 画图(x,矩):刻=r(-10,11);[x.plot(刻,值[1:22],c=颜[i],label=标[len(矩)<4][i])for i,值 in enumerate(矩)];x.set_xticks(刻);x.grid(True);x.legend();np.nanmin(矩)<0 and x.set_ylim(-1,1)
 def 解构(益矩,长矩): return (np.nanmean(np.where(益矩!=0,益矩/长矩,np.nan),axis=2)),(np.sum(np.where(长矩>0,1,0),axis=2)) # 时间=时间[细:=抠数(时间,0)*年号==年号*年号];df=df[:,细] 
 def 当星反应(周号,名): # 文件均含开/高/收/低四个价格,停牌时股价可能为0,这时换成nan防画入||益矩:[因子数,点数,天数],方矩则存储对应例数 # 48-6160 # 88-8927 # 57-6668 # 72-8003
