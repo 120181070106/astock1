@@ -1,0 +1,35 @@
+import baostock as bs; from tqdm import tqdm; import pandas as pd; import numpy as np; import time,os; from datetime import date
+def 读取(s,r): r.extend(s.get_row_data() for _ in iter(lambda:s.next() & (s.error_code=='0'),False)) #while简写,移动读取
+def 获取(码,始,末,周期,信息="date,code,high,low,open,close"): return bs.query_history_k_data_plus(码,fields=信息,start_date=始,end_date=末,frequency=周期,adjustflag="2") #2表前复权
+def 取码(表名,开始,结束): # 获取沪深主板的股票代码即股票名字,stock_basic负责基本信息,k_data()才管价格,下面r/r1均中转数据表,r1另为股据添加价格,剔除买不到的st股↓
+    r=[]; 价股=[]; s=bs.query_stock_basic(); 读取(s,r); 股据=pd.DataFrame(r,columns=s.fields); a=(股据['ipoDate']<'2020-01-01')&(~股据['code_name'].str.contains('ST'))
+    真据=股据[股据['code'].str.startswith(('sz.00','sh.60'),na=False)&(股据['status']=='1')&a]; #pd.DataFrame(list((真据[['code','code_name']]).values)).to_csv(表名,index=0)
+    for i,(_,股) in tqdm(enumerate(真据.iterrows())):读取(获取(股['code'],开始,结束,"d","close"),r1:=[]);价股.append([股['code'],股['code_name'],float(r1[-1][0])]) 
+    pd.DataFrame([[股[0],股[1],股[2]] for 股 in 价股]).to_csv(表名,index=False,encoding='utf-8-sig') # 欲不加价直出标记上面注释 
+def 下载(码,周期,价类,始,末): # 下载单票月K,开由于作用不大不管,pd.to_datetime(股据['date'])可经.dt.month等提取具体时间,价类numeric为便限长,r有如[[2025-1,sh.6,1.6,1.3,1.4]..]
+    读取(s:=获取(码[0],始,末,周期),r:=[]);股据=pd.DataFrame(r,columns=s.fields);股据['name']=码[1];股据[价类]=pd.to_numeric(股据[价类]);return 股据[['date','code','name',价类]] 
+def 转矩(各据,整否,价类='close'): # 创建形为:股数×时序长度的矩阵,先取日期排序,注意可能取的是日内多条的小k线,如是标注首行 ||标记下下行仅保留次素即中盘价-------------------------
+    for 股据 in 各据.values(): 股据['date']=股据['date'].astype(str)+[('.'+股据.groupby('date').cumcount().astype(str)),''][整否.astype(int)] # 非整才加小数
+    # for k,据 in 各据.items(): 据=据[据['date'].astype(str).str.endswith('.1')].reset_index(drop=True); 据['date']=据['date'].astype(str).str.split('.').str[0]; 各据[k]=据 
+    日期集 = sorted(set(日 for 股据 in 各据.values() for 日 in 股据['date'])); 股矩,码集=[],[]; i={'close':1,'high':1.1,'low':1.2,'open':1.3}[价类] 
+    for 码,据 in tqdm(各据.items(),desc="构矩"): #股码是{"sh.6":Date1,...}前项即字典key,序号整数表同股,小数0/1/2/3表收/高/低/开价 
+        码集.append((i,码,据['name'].iloc[0])); i+=1; 股矩.append(pd.Series(据[价类].values,index=据['date'].values).reindex(日期集).values) 
+    return pd.DataFrame(股矩,index=pd.MultiIndex.from_tuples(码集,names=['序号','代码','名称']),columns=日期集).round(2) # names是重赋名
+c = "d26.csv" # 首要参数就是此文件名,首字母m/w/d/h表示是月/周/日/时的价格,中间两位表开始年尾号,末位为结束年尾号,无则仅一年;再就是下行的价类和限价,'股表.csv'需定期删除再更新
+价类 = 0; 限价 = 10 # 0收-1高-2低-3开,限价填0则不限价,因为波动性不用刻意定死股价的上限,需要一定的容错,最好就理想上限的1.5或两倍 # False/True
+重生股表否 = 0; 中断否 = False; 表名='股表.csv' # 周期用周线w的五年数据(考虑可买性需额外限价),板块用日线d的一年数据(不限价以避免有些小版块基数不够)
+开年=2000+int(c[1:3]); 差=int([c[3],c[2]][c[3]=="."])+1-开年%10; 结年=开年+[差,10+差][差>0]; 结年=[结年-10,结年][c[2]==c[3]]; 周期=[c[0],"60"][c[0]=="h"]
+开始=f"{开年}-01-01"; 结束=f"{结年}-01-01"; print(开始,结束) # 先打印出开始年和结束年以便确认无误
+#------------------------↑参数设置区(六个参数)------------------------# 
+h="h"+c; l="l"+c; o="o"+c; 中断点号 = 0; bs.login(); 价类=['close','high','low','open'][价类]; 出名={'close':c,'high':h,'low':l,'open':o}[价类]
+if not os.path.exists(表名) or 重生股表否: 取码(表名,date.today().replace(day=1).strftime("%Y-%m-%d"),date.today().strftime("%Y-%m-%d")) # 无则创,结束天为当天,开始天为当月第一天
+if 中断否: 中断点号 = i; print("中断点号:",i) # 若网差下载中断可标注此行,首次下载请默认注释------ 
+else: 股据 = {}; i = 0 #----下完数据后想重新启动矩阵的构建注释掉这三行 
+简矩=np.array(pd.read_csv(表名,encoding="utf-8")); 低价矩=简矩[简矩[:,-1]<[限价,10000][限价==0]]; print(低价矩,低价矩.shape)
+for 码 in tqdm(list(低价矩)[中断点号:], desc="下载"): 
+    股据[码[0]] = 下载(码,周期,价类,开始,结束); i+=1 
+股据 = {k:v for k,v in 股据.items() if not isinstance(v, int)}; bs.logout() # 执行高价股过滤
+股矩 = 转矩(股据,np.any(np.isin(["m","w","d"],周期)),价类); 股矩.to_csv(出名); print(f"已存至{出名},{len(股矩)}股{len(股矩.columns)}数") 
+要表=[h,l,c]+([o] if 周期=='d' else []) 
+if all(os.path.exists(f) for f in 要表):  # 日线时才考虑结合开盘价,月/周/小时线均不需此价 
+    pd.concat([pd.read_csv(f) for f in 要表],axis=0).sort_values('序号').to_csv('z'+c,index=0); print("价亦存") 

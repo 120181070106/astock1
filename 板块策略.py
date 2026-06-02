@@ -1,0 +1,43 @@
+import copy,os,pandas as pd,numpy as np,matplotlib.font_manager as f,seaborn as sns;import matplotlib.pyplot as plt;from collections import Counter#np.sum(a,1)=a.sum(1),1跨列横向求和
+def 插入(文,列,动文): 行据=pd.read_csv(文,sep=None,engine='python',encoding='gbk',header=None); 动文.insert(列,str(列),动文[1].map(dict(zip(行据[3],行据[1]))).fillna('〇')) 
+def 概典生成(主文):
+    概念_df=pd.read_csv('概念板块.txt',sep=None,header=None,encoding='gbk',engine='python')[[3,1]].copy()  # 提取第4列(股票名)和第2列(概念) 
+    d26_df=pd.read_csv(主文,header=None)[[0,2]].copy(); 概念_df.columns=['股票名','概念']; d26_df.columns=['序号','股票名']  # 重命名列 
+    概念_df.merge(d26_df,on='股票名',how='inner')[['序号','股票名','概念']].to_csv('概念字典.csv',index=False,header=False) # inner自动删除匹配不上的行
+r=range; 读数=lambda a:pd.read_csv(a,header=0,encoding='utf-8'); 竖=lambda a:r(len(a)); pp=lambda a:np.array(a); 整=lambda a:pp(a).astype(int); 转=lambda a:pp(a).reshape(-1,1) 
+f.fontManager.addfont("s.ttf"); plt.rcParams['axes.unicode_minus']=0; plt.rcParams['font.sans-serif']=[f.FontProperties(fname="s.ttf").get_name()]; 帧=lambda a:pd.DataFrame(a)
+def 概生(概念,变矩): # 概念:[序号列,股名列,概名列],其2列去重作为键,值空着初始化出两个字典,分别填入0列的股序号+1列的股名,得号典和名典||去除股数不足5的小概念,逐概念调其所有股线求均得概线(字典)
+    号典=l={k:[] for k in np.unique(概念[:,2].astype(str)).tolist()}; 名典=copy.deepcopy(l); _=[(号典[行[2]].append(int(行[0])-1),名典[行[2]].append(行[1])) for 行 in 概念] 
+    去小=lambda a:{k:v for k,v in a.items()if len(v)>4}; 名典,号典=去小(名典),去小(号典); 概线={名:pp([变矩[号]for 号 in 号集]).mean(0)for 名,号集 in 号典.items()} #复名=股数+股名+最值↓ 
+    概名=pp(list(概线.keys())); 板矩=pp(list(概线.values())); 最值=整(板矩.max(1)*100); 复名=pp([f"{len(v)}{概名[i]}{最值[i]}"for i,v in enumerate(名典.values())])
+    概长=len(概名); 截值=[3,4][概长>200]; 概长>200 and 帧(np.hstack([转(概名),整(板矩>0)])).to_csv('概线.csv',index=0) # 概线便算两概相似度作混淆矩底色,另↓txt板股字典,↓png板热力图 
+    截冷=lambda a:a[整(最值)>整(截值)][np.argsort(-最值[最值>截值])]; 板矩,复名,最值=map(截冷,[板矩,复名,最值]); 名=[['行业','概念'][概长>200],'地区'][概长<50] # 截掉历史最大幅不够的概念 
+    print(f"{名}板矩形状:",板矩.shape); 帧(list(名典.items())).to_csv(f'{名}.txt',index=0); 标记=np.where(板矩==板矩.max(0),'0',np.where(板矩==板矩.min(0),'1',''))  
+    plt.figure(figsize=(24,len(板矩)/5)); sns.heatmap(板矩,cmap='RdYlGn',center=0,yticklabels=复名,annot=标记,fmt=''); plt.savefig(f'{名}.png') # (板数,天数) 
+def 形似(矩): 元=整(矩[:,1:]>矩[:,:-1]); m=整((np.dot(元,元.T)+np.dot(1-元,(1-元).T))/元.shape[1]*100); np.fill_diagonal(m,0); return m # 整数更精简如0.835→83 
+#----------------------------------------------------------板表/概典/概线/热力图生成---------------------------------------------------------#
+# if not os.path.exists('板表.csv'): 动文=pd.read_csv('股表.csv',header=None); 插入('地区板块.txt',3,动文); 插入('行业板块.txt',4,动文); 动文=动文[动文.iloc[:,2]<10] 
+# if not os.path.exists('板表.csv'): 动文.insert(0,'序号',range(0,len(动文))); 动文.pop(动文.columns[3]); 动文.to_csv('板表.csv',index=False,header=False) 
+# 板表=pp(读数('板表.csv')); 主文='d25.csv' 
+# if not os.path.exists('概念字典.csv'): 概典生成(主文) 
+# 月价=pp(读数(主文)); 名矢=月价[:,2]; 变矩=pp(帧(月价[:,3:]).astype(float).pct_change(axis=1))[:,1:] # pct所生变矩专用于并行如板块求均可视化或单日多股回测,各列:0股号2股名3地区4行业
+# if not os.path.exists('行业.txt'): 概生(板表[:,[0,2,4]],变矩); 概生(板表[:,[0,2,3]],变矩); 概生(读数('概念字典.csv').values[:,[0,1,2]],变矩) # 生成并保存:地区/行业/概念的字典/热图
+#----------------------------------------------------------关联股表生成----------------------------------------------------------------------#
+# 扩散=lambda a:np.tile(a,(len(a),1)).astype(str); 关矩=形似(月价[:,3:]); 关名矩=np.char.add(关矩.astype(str),扩散(名矢)) 
+# 区注矩=np.where(转(板表[:,3])==扩散(板表[:,3]),'*',''); 业区矩=np.char.add(板表[:,4].astype(str),区注矩.astype(str)); #print(业区矩) 
+# 行热=lambda 股,行:'-'.join(map(str,股[np.argsort(-关矩[行])[:10]])); 友股集,友业集=map(list,zip(*[(行热(关名矩[行],行),行热(业区矩[行],行))for 行 in 竖(关矩)])) 
+# 带签股名=[f"{行[2]}-{行[4]}-{行[3]}" for 行 in 月价]; l=np.hstack([转(带签股名),转(友股集),转(友业集)]); 帧(l).to_csv("关联股表.csv",index=0,header=0); #print("ok")  
+#----------------------------------------------------------多维度可视化----------------------------------------------------------------------#
+def 提纯(交矩,关矩,时点=0): # 单股可能出现在多个概念对的交集,以此函消融,仅保留两概念最正交处的位置 
+    for 股 in list({元素 for r in 交矩 for c in r for 元素 in c}): # 矩阵所有列表元素去重转列表 
+        位表,值表=map(list,zip(*[((i,j),关矩[i,j])for i in 竖(交矩)for j in 竖(交矩)if 股 in 交矩[i][j]])) # 统计当股在交矩中出现的所有位置及交矩在对应位置的值
+        冗位表=[位表[k]for k,v in enumerate(值表)if v>min(值表)]; [交矩[p[0]][p[1]].remove(股) for p in 冗位表] # 删掉其他,仅保留对应交矩最小值的位置处的当股 
+交叉=lambda a,b:[[list(set(set(eval(a[i]))&set(eval(b[j]))))for j in 竖(b)]for i in 竖(a)] # eval将源自txt中的股集字符串转为python对象即列表形式||↓get次参是当字典无前参的键时的返回值
+板转股集=lambda 矢,名:[dict(zip(*pd.read_csv(f'{名}.txt').values.T)).get(概念,概念) for 概念 in 矢]; 矩表内联=lambda 矩:[['-'.join(map(str,素))if 素 else ''for 素 in 行]for 行 in 矩]
+# 热业=['普钢','商用车','工业金属']; 热区=['河南板块','辽宁板块'] 
+热业=热区=['AI眼镜','可燃冰','肝炎概念','MicroLED','仿制药','碳纤维','草甘膦','维生素','幽门螺杆菌']  # 上行为行业-地区,下行为概念-概念,据情况注释 
+if 热业!=热区: 交矩=交叉(板转股集(热业,'行业'),板转股集(热区,'地区')); 关矩=pp([[len(c) for c in r] for r in 交矩]) # 这里由于行业-地区间不存在交叠,故将长矩作为关矩体现格子颜色
+if 热业==热区: 股集=板转股集(热业,'概念'); 交矩=交叉(股集,股集); [交矩[j].__setitem__(j,set()) for j in 竖(交矩)]; 概线=pp(pd.read_csv('概线.csv')) # 将对角线元素置为空集
+if 热业==热区: 元=pp([概线[热概名==概线[:,0],1:][0] for 热概名 in 热业]); 关矩=整(np.dot(元,元.T)+np.dot(1-元,(1-元).T)); 提纯(交矩,关矩) # 形似次参1表示首参已经元化跳过元化步骤
+plt.figure(figsize=(0.8*len(热业),0.6*len(热区))); sns.heatmap(关矩,cmap='Blues',vmin=np.min(关矩),xticklabels=pp(热区),yticklabels=pp(热业),annot=矩表内联(交矩),fmt=''); plt.show() 
+_=[print(f"{热业[i]}-{热区[j]}: {交矩[i][j]}") for i,j in np.ndindex((len(热业),len(热区))) if 交矩[i][j] and [True,i<j][热业==热区]] # 打印混淆矩上有效单元格信息 
